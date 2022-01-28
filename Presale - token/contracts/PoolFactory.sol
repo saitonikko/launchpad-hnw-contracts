@@ -97,7 +97,7 @@ contract PoolFactory is Ownable {
         fees[1] = 2;
         tvl = 0;
         feeWallet = payable(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
-        lock = IPinkLock(0xDB7f34CA6c5F5f7EEE7C3c160219918145A9f403);
+        lock = IPinkLock(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
     }
 
     function getPools() public view returns (address[] memory a) {
@@ -148,7 +148,7 @@ contract PoolFactory is Ownable {
     }
 
     function createPool(
-        address[4] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance
+        address[5] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance, [4] = cointoken
         uint256[2] memory _rateSettings, // [0] = rate, [1] = uniswap rate
         uint256[2] memory _contributionSettings, // [0] = min, [1] = max
         uint256[2] memory _capSettings, // [0] = soft cap, [1] = hard cap
