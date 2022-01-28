@@ -1802,6 +1802,9 @@ contract Pool is OwnableUpgradeable {
         whitelists = _whitelists;
     }
 
+    function getWhiteLists() public view returns(address[] memory){
+        return whitelists;
+    }
     function getContributionAmount(address user_)
         public
         view

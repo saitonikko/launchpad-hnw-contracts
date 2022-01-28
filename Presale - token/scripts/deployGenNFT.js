@@ -14,7 +14,7 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const PINKLOACK = await hre.ethers.getContractFactory("PinkLock");
+  const PINKLOACK = await hre.ethers.getContractFactory("PoolFactory");
   const PinkLock = await PINKLOACK.deploy();
 
   await PinkLock.deployed();

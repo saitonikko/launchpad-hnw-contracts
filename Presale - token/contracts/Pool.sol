@@ -1351,6 +1351,7 @@ contract Pool is OwnableUpgradeable {
     address public router;
     address public governance;
 
+    address public cointoken;
     address public token;
     uint256 public rate;
     uint256 public minContribution;
@@ -1439,12 +1440,9 @@ contract Pool is OwnableUpgradeable {
         _;
     }
 
-    receive() external payable {
-        if (msg.value > 0) contribute();
-    }
-
+   
     function initialize(
-        address[4] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance
+        address[5] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance, [4] = cointoken
         uint256[2] memory _rateSettings, // [0] = rate, [1] = uniswap rate
         uint256[2] memory _contributionSettings, // [0] = min, [1] = max
         uint256[2] memory _capSettings, // [0] = soft cap, [1] = hard cap
@@ -1503,6 +1501,7 @@ contract Pool is OwnableUpgradeable {
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(_addrs[0]);
         factory = msg.sender;
+        cointoken = _addrs[4];
         token = _addrs[1];
         router = _addrs[2];
         governance = _addrs[3];
@@ -1527,8 +1526,9 @@ contract Pool is OwnableUpgradeable {
         lock = _lock;
     }
 
-    function contribute() public payable inProgress {
-        require(msg.value > 0, "Cant contribute 0");
+    function contribute(uint256 amount) public inProgress {
+        require(amount > 0, "Cant contribute 0");
+        IERC20(cointoken).transferFrom(msg.sender, address(this), amount);
         uint256 f = 0;
         for (uint256 i = 0; i < whitelists.length; i++) {
             if (whitelists[i] == msg.sender) {
@@ -1539,7 +1539,7 @@ contract Pool is OwnableUpgradeable {
         require(f == 1 || whitelists.length == 0, "You are not whitelisted");
 
         uint256 userTotalContribution = contributionOf[msg.sender].add(
-            msg.value
+            amount
         );
 
         if (hardCap.sub(totalRaised) >= minContribution) {
@@ -1553,20 +1553,20 @@ contract Pool is OwnableUpgradeable {
             "Contribute more than allowed"
         );
         require(
-            totalRaised.add(msg.value) <= hardCap,
+            totalRaised.add(amount) <= hardCap,
             "Buying amount exceeds hard cap"
         );
         if (contributionOf[msg.sender] == 0) {
             contributors.push(msg.sender);
         }
         contributionOf[msg.sender] = userTotalContribution;
-        totalRaised = totalRaised.add(msg.value);
-        uint256 volume = msg.value.mul(rate).div(1e18);
+        totalRaised = totalRaised.add(amount);
+        uint256 volume = amount.mul(rate).div(1e18);
         require(volume > 0, "Contribution too small to produce any volume");
         purchasedOf[msg.sender] = purchasedOf[msg.sender].add(volume);
         totalVolumePurchased = totalVolumePurchased.add(volume);
         getC_Amounts();
-        emit Contributed(msg.sender, msg.value, volume, totalVolumePurchased);
+        emit Contributed(msg.sender, amount, volume, totalVolumePurchased);
     }
 
     function claim() public {
@@ -1617,7 +1617,8 @@ contract Pool is OwnableUpgradeable {
         totalRefunded = totalRefunded.add(refundAmount);
         contributionOf[msg.sender] = 0;
 
-        payable(msg.sender).sendValue(refundAmount);
+        IERC20(cointoken).approve(msg.sender, refundAmount);
+        IERC20(cointoken).transferFrom(address(this), msg.sender, refundAmount);
         emit WithdrawnContribution(msg.sender, refundAmount);
     }
 
@@ -1635,19 +1636,19 @@ contract Pool is OwnableUpgradeable {
 
         poolState = PoolState.completed;
 
-        uint256 bnbFee = totalRaised.mul(ethFeePercent).div(100);
+        uint256 coinFee = totalRaised.mul(ethFeePercent).div(100);
         uint256 tokenFee = totalVolumePurchased.mul(tokenFeePercent).div(100);
 
-        uint256 liquidityBnb = totalRaised
-            .sub(bnbFee)
+        uint256 liquidityCoin = totalRaised
+            .sub(coinFee)
             .mul(liquidityPercent)
             .div(100);
-        uint256 liquidityToken = liquidityBnb.mul(liquidityListingRate).div(
+        uint256 liquidityToken = liquidityCoin.mul(liquidityListingRate).div(
             1e18
         );
 
-        uint256 remainingBnb = address(this).balance.sub(liquidityBnb).sub(
-            bnbFee
+        uint256 remainingCoin = IERC20(cointoken).balanceOf(address(this)).sub(liquidityCoin).sub(
+            coinFee
         );
         uint256 remainingToken = 0;
 
@@ -1661,12 +1662,12 @@ contract Pool is OwnableUpgradeable {
         }
 
         // Pay platform fees
-        payable(governance).sendValue(bnbFee);
+        IERC20(cointoken).safeTransfer(governance, coinFee);
         IERC20(token).safeTransfer(governance, tokenFee);
 
         // Refund remaining
-        if (remainingBnb > 0) {
-            payable(owner()).sendValue(remainingBnb);
+        if (remainingCoin > 0) {
+            IERC20(cointoken).safeTransfer(owner(), remainingCoin);
         }
 
         if (remainingToken > 0) {
@@ -1678,17 +1679,18 @@ contract Pool is OwnableUpgradeable {
             }
         }
 
-        tvl = liquidityBnb.mul(2);
+        tvl = liquidityCoin.mul(2);
 
         IERC20(token).approve(router, liquidityToken);
+        IERC20(cointoken).approve(router, liquidityCoin);
 
-        (, , uint256 liquidity) = IUniswapV2Router02(router).addLiquidityETH{
-            value: liquidityBnb
-        }(
+        (, , uint256 liquidity) = IUniswapV2Router02(router).addLiquidity(
             token,
+            cointoken,
             liquidityToken,
+            liquidityCoin,
             liquidityToken,
-            liquidityBnb,
+            liquidityCoin,
             address(this),
             block.timestamp
         );
@@ -1697,7 +1699,7 @@ contract Pool is OwnableUpgradeable {
         tvl = 0;
         address swapFactory = IUniswapV2Router02(router).factory();
         address pair = IUniswapV2Factory(swapFactory).getPair(
-            IUniswapV2Router02(router).WETH(),
+            cointoken,
             token
         );
         uint256 pairamount = IERC20(pair).balanceOf(address(this));
@@ -1766,7 +1768,7 @@ contract Pool is OwnableUpgradeable {
     ) external onlyGovernance {
         address swapFactory = IUniswapV2Router02(router).factory();
         address pair = IUniswapV2Factory(swapFactory).getPair(
-            IUniswapV2Router02(router).WETH(),
+            cointoken,
             token
         );
         require(
@@ -1800,6 +1802,10 @@ contract Pool is OwnableUpgradeable {
         onlyGovernance
     {
         whitelists = _whitelists;
+    }
+
+    function getWhiteLists() public view returns (address[] memory) {
+        return whitelists;
     }
 
     function getContributionAmount(address user_)
@@ -1840,7 +1846,7 @@ contract Pool is OwnableUpgradeable {
     function liquidityBalance() public view returns (uint256) {
         address swapFactory = IUniswapV2Router02(router).factory();
         address pair = IUniswapV2Factory(swapFactory).getPair(
-            IUniswapV2Router02(router).WETH(),
+            cointoken,
             token
         );
         return IERC20(pair).balanceOf(address(this));
