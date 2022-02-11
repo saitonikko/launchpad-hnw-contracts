@@ -14,19 +14,19 @@ async function main() {
   // await hre.run('compile');
 
   // We get the contract to deploy
-  const PINKLOACK = await hre.ethers.getContractFactory("PoolFactory");
-  const PinkLock = await PINKLOACK.deploy();
+  // const PINKLOACK = await hre.ethers.getContractFactory("PoolFactory");
+  // const PinkLock = await PINKLOACK.deploy();
 
-  await PinkLock.deployed();
+  // await PinkLock.deployed();
 
-  console.log("Contract deployed to:", PinkLock.address);
+  // console.log("Contract deployed to:", PinkLock.address);
 
-  // const POOLFACTORY = await hre.ethers.getContractFactory("PoolFactory");
-  // const PoolFactory = await POOLFACTORY.deploy("0xDB7f34CA6c5F5f7EEE7C3c160219918145A9f403");
+  const POOLFACTORY = await hre.ethers.getContractFactory("PoolFactory");
+  const PoolFactory = await POOLFACTORY.deploy();
 
-  // await PoolFactory.deployed();
+  await PoolFactory.deployed();
 
-  // console.log("Contract deployed to:", PoolFactory.address);
+  console.log("Contract deployed to:", PoolFactory.address);
 
 }
 
