@@ -92,6 +92,10 @@ contract PoolFactory is Ownable {
     uint256 public tvl;
     uint256 public curPool;
 
+    event CreatePool(
+        address pool
+    );
+
     constructor() {
         fees[0] = 2;
         fees[1] = 2;
@@ -198,6 +202,7 @@ contract PoolFactory is Ownable {
                 _poolDetails,
                 lock
             );
+            emit CreatePool(address(pool));
         }
     }
 

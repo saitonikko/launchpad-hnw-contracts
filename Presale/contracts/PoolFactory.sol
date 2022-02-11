@@ -92,6 +92,9 @@ contract PoolFactory is Ownable {
     uint256 public tvl;
     uint256 public curPool;
 
+    event CreatePool(
+        address pool
+    );
     constructor() {
         fees[0] = 2;
         fees[1] = 2;
@@ -159,7 +162,9 @@ contract PoolFactory is Ownable {
         uint256 _liquidityPercent,
         uint256 _refundType,
         string memory _poolDetails // ERC20 _rewardToken
-    ) external payable {
+    ) external payable{
+        
+         
         uint256 totaltoken = estimateTokenAmount(
             _rateSettings,
             _capSettings,
@@ -173,6 +178,7 @@ contract PoolFactory is Ownable {
             for (uint256 i = pools.length - 1; i > 0; i--)
                 pools[i] = pools[i - 1];
             pools[0] = address(pool);
+            
             isExisting[_addrs[1]] = true;
 
             IERC20(_addrs[1]).approve(address(pool), totaltoken);
@@ -198,7 +204,12 @@ contract PoolFactory is Ownable {
                 _poolDetails,
                 lock
             );
+            emit CreatePool(address(pool));
         }
+    }
+
+    function removeStuckBNB() external onlyOwner{
+        payable(owner()).transfer(address(this).balance);
     }
 
     receive() external payable {}
