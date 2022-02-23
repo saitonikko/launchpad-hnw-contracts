@@ -1452,7 +1452,7 @@ contract Pool is OwnableUpgradeable {
         uint256[5] memory _teamVestings, //[0] = total team token, [1] = first release minute, [2] = first release percent, [3] = period minutes, [4] = each cycle percent
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256 _refundType,
+        uint256[2] _refundType,
         string memory _poolDetails,
         IPinkLock _lock
     ) external initializer {
@@ -1495,7 +1495,7 @@ contract Pool is OwnableUpgradeable {
             "Invalid liquidity percentage"
         );
         require(
-            _refundType == 0 || _refundType == 1,
+            _refundType[0] == 0 || _refundType[0] == 1,
             "Refund type must be 0 (refund) or 1 (burn)"
         );
         OwnableUpgradeable.__Ownable_init();
@@ -1524,6 +1524,8 @@ contract Pool is OwnableUpgradeable {
         vestings = _vestings;
         teamVestings = _teamVestings;
         lock = _lock;
+        if(_refundType[1] == 1)
+            whitelists.push(msg.sender);
     }
 
     function contribute(uint256 amount) public inProgress {

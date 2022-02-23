@@ -85,6 +85,7 @@ contract PoolFactory is Ownable {
     mapping(address => bool) public isExisting;
 
     uint256[2] public fees;
+    uint256 public createFee;
 
     address payable public feeWallet;
     IPinkLock lock;
@@ -92,12 +93,12 @@ contract PoolFactory is Ownable {
     uint256 public tvl;
     uint256 public curPool;
 
-    event CreatePool(
-        address pool
-    );
+    event CreatePool(address pool);
+
     constructor() {
         fees[0] = 2;
         fees[1] = 2;
+        createFee = 3 * 10**17;
         tvl = 0;
         feeWallet = payable(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
         lock = IPinkLock(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
@@ -111,13 +112,19 @@ contract PoolFactory is Ownable {
         return fees;
     }
 
+    function getCreateFee() public view returns (uint256) {
+        return createFee;
+    }
+
     function setValues(
-        uint256 _newfee1,
-        uint256 _newfee2,
+        uint256 _tokenFee,
+        uint256 _ethFee,
+        uint256 _createFee,
         address payable _newFeeWallet
     ) external onlyOwner {
-        fees[0] = _newfee1;
-        fees[1] = _newfee2;
+        fees[0] = _tokenFee;
+        fees[1] = _ethFee;
+        createFee = _createFee;
         feeWallet = _newFeeWallet;
     }
 
@@ -160,11 +167,10 @@ contract PoolFactory is Ownable {
         uint256[5] memory _teamVestings,
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256 _refundType,
+        uint256[2] memory _refundType,
         string memory _poolDetails // ERC20 _rewardToken
-    ) external payable{
-        
-         
+    ) external payable {
+        require(createFee >= msg.value, 'not enough Fee');
         uint256 totaltoken = estimateTokenAmount(
             _rateSettings,
             _capSettings,
@@ -178,7 +184,7 @@ contract PoolFactory is Ownable {
             for (uint256 i = pools.length - 1; i > 0; i--)
                 pools[i] = pools[i - 1];
             pools[0] = address(pool);
-            
+
             isExisting[_addrs[1]] = true;
 
             IERC20(_addrs[1]).approve(address(pool), totaltoken);
@@ -208,7 +214,7 @@ contract PoolFactory is Ownable {
         }
     }
 
-    function removeStuckBNB() external onlyOwner{
+    function removeStuckBNB() external onlyOwner {
         payable(owner()).transfer(address(this).balance);
     }
 
