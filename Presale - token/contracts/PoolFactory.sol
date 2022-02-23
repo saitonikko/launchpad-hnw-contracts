@@ -85,7 +85,7 @@ contract PoolFactory is Ownable {
     mapping(address => bool) public isExisting;
 
     uint256[2] public fees;
-
+    
     address payable public feeWallet;
     IPinkLock lock;
 
@@ -99,6 +99,7 @@ contract PoolFactory is Ownable {
     constructor() {
         fees[0] = 2;
         fees[1] = 2;
+        
         tvl = 0;
         feeWallet = payable(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
         lock = IPinkLock(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
