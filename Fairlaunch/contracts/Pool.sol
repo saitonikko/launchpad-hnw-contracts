@@ -1352,11 +1352,7 @@ contract Pool is OwnableUpgradeable {
     address public governance;
 
     address public token;
-    uint256 public rate;
-    uint256 public minContribution;
-    uint256 public maxContribution;
     uint256 public softCap;
-    uint256 public hardCap;
 
     uint256 public startTime;
     uint256 public endTime;
@@ -1364,11 +1360,12 @@ contract Pool is OwnableUpgradeable {
     uint256 private tokenFeePercent;
     uint256 private ethFeePercent;
 
+    uint256 public totalSellAmount;
+
     uint256 public liquidityListingRate;
     uint256 public liquidityUnlockTime;
     uint256 public liquidityLockDays;
     uint256 public liquidityPercent;
-    uint256 public refundType;
 
     string public poolDetails;
 
@@ -1384,6 +1381,7 @@ contract Pool is OwnableUpgradeable {
     uint256 public locknumber;
 
     bool public completedKyc;
+    bool public whiteList;
 
     string public urls;
 
@@ -1395,18 +1393,14 @@ contract Pool is OwnableUpgradeable {
     address[] public contributors;
     uint256[] public c_amounts;
 
-    uint256[3] public vestings;
     uint256[5] public teamVestings;
 
     uint256 public finalizeTime;
     uint256 public claimedTeamVesting;
 
-    address[] public whitelists;
-
     event Contributed(
         address indexed user,
         uint256 amount,
-        uint256 volume,
         uint256 total
     );
 
@@ -1422,7 +1416,6 @@ contract Pool is OwnableUpgradeable {
             "Pool is either completed or cancelled"
         );
         require(block.timestamp < endTime, "Pool ended");
-        require(totalRaised < hardCap, "Hardcap reached");
         _;
     }
 
@@ -1445,25 +1438,18 @@ contract Pool is OwnableUpgradeable {
 
     function initialize(
         address[4] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance
-        uint256[2] memory _capSettings, // [0] = soft cap, [1] = hard cap
+        uint256 _softCap, // [0] = soft cap, [1] = hard cap
+        uint256 _saleToken,
         uint256[3] memory _timeSettings, // [0] = start, [1] = end, [2] = unlock seconds
-        uint256 _saletoken,
         uint256[2] memory _feeSettings, // [0] = token fee percent, [1] = eth fee percent
         uint256[5] memory _teamVestings, //[0] = total team token, [1] = first release minute, [2] = first release percent, [3] = period minutes, [4] = each cycle percent
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256[2] memory _refundType, // 0 = refund   1 = whitelist
         string memory _poolDetails,
         IPinkLock _lock
     ) external initializer {
         require(factory == address(0), "Pool: Forbidden");
         require(_addrs[0] != address(0), "Invalid owner address");
-       
-        require(
-            _capSettings[0].mul(2) >= _capSettings[1] &&
-                _capSettings[0] <= _capSettings[1],
-            "Softcap must be >= 50% of hardcap"
-        );
         require(
             _timeSettings[0] > block.timestamp,
             "Start time should be in the future"
@@ -1483,14 +1469,9 @@ contract Pool is OwnableUpgradeable {
                 _feeSettings[1] <= 100,
             "Invalid fee settings. Must be percentage (0 -> 100)"
         );
-     
         require(
             _liquidityPercent >= 51 && _liquidityPercent <= 100,
             "Invalid liquidity percentage"
-        );
-        require(
-            _refundType[0] == 0 || _refundType[0] == 1,
-            "Refund type must be 0 (refund) or 1 (burn)"
         );
         OwnableUpgradeable.__Ownable_init();
         transferOwnership(_addrs[0]);
@@ -1498,66 +1479,38 @@ contract Pool is OwnableUpgradeable {
         token = _addrs[1];
         router = _addrs[2];
         governance = _addrs[3];
-        minContribution = _contributionSettings[0];
-        maxContribution = _contributionSettings[1];
-        softCap = _capSettings[0];
-        hardCap = _capSettings[1];
+        softCap = _softCap;
+        totalSellAmount = _saleToken;
         startTime = _timeSettings[0];
         endTime = _timeSettings[1];
         liquidityLockDays = _timeSettings[2];
         tokenFeePercent = _feeSettings[0];
         ethFeePercent = _feeSettings[1];
         liquidityPercent = _liquidityPercent;
-        refundType = _refundType[0];
         poolDetails = _poolDetails;
         poolState = PoolState.inUse;
         urls = _urls;
-        vestings = _vestings;
         teamVestings = _teamVestings;
         lock = _lock;
-        if(_refundType[1] == 1) whitelists.push(_addrs[0]);
     }
 
     function contribute() public payable inProgress {
         require(msg.value > 0, "Cant contribute 0");
-        uint256 f = 0;
-        for (uint256 i = 0; i < whitelists.length; i++) {
-            if (whitelists[i] == msg.sender) {
-                f = 1;
-                break;
-            }
-        }
-        require(f == 1 || whitelists.length == 0, "You are not whitelisted");
 
         uint256 userTotalContribution = contributionOf[msg.sender].add(
             msg.value
         );
-
-        if (hardCap.sub(totalRaised) >= minContribution) {
-            require(
-                userTotalContribution >= minContribution,
-                "Min contribution not reached"
-            );
-        }
         require(
-            userTotalContribution <= maxContribution,
-            "Contribute more than allowed"
-        );
-        require(
-            totalRaised.add(msg.value) <= hardCap,
-            "Buying amount exceeds hard cap"
+            totalRaised.add(msg.value) <= totalSellAmount,
+            "Buying amount exceeds total sell amount"
         );
         if (contributionOf[msg.sender] == 0) {
             contributors.push(msg.sender);
         }
         contributionOf[msg.sender] = userTotalContribution;
         totalRaised = totalRaised.add(msg.value);
-        uint256 volume = msg.value.mul(rate).div(1e18);
-        require(volume > 0, "Contribution too small to produce any volume");
-        purchasedOf[msg.sender] = purchasedOf[msg.sender].add(volume);
-        totalVolumePurchased = totalVolumePurchased.add(volume);
         getC_Amounts();
-        emit Contributed(msg.sender, msg.value, volume, totalVolumePurchased);
+        emit Contributed(msg.sender, msg.value, totalVolumePurchased);
     }
 
     function claim() public {
@@ -1565,25 +1518,10 @@ contract Pool is OwnableUpgradeable {
             poolState == PoolState.completed,
             "Owner has not closed the pool yet"
         );
-        require(
-            claimedOf[msg.sender] != purchasedOf[msg.sender],
-            "Already claimed"
+        require(claimedOf[msg.sender] == 0, "Already claimed");
+        uint256 volume = totalSellAmount.mul(contributionOf[msg.sender]).div(
+            totalRaised
         );
-        uint256 volume = purchasedOf[msg.sender];
-        if (vestings[0] > 0) {
-            volume = volume
-                .mul(
-                    vestings[0].add(
-                        block.timestamp.sub(finalizeTime).div(vestings[1]).mul(
-                            vestings[2]
-                        )
-                    )
-                )
-                .div(100);
-            if (volume > purchasedOf[msg.sender])
-                volume = purchasedOf[msg.sender];
-            volume = volume.sub(claimedOf[msg.sender]);
-        }
         claimedOf[msg.sender] = claimedOf[msg.sender].add(volume);
         totalClaimed = totalClaimed.add(volume);
         IERC20(token).safeTransfer(msg.sender, volume);
@@ -1618,24 +1556,20 @@ contract Pool is OwnableUpgradeable {
             "Pool was finialized or cancelled"
         );
         require(
-            totalRaised == hardCap ||
-                hardCap.sub(totalRaised) < minContribution ||
-                (totalRaised >= softCap && block.timestamp >= endTime),
+            (totalRaised >= softCap && block.timestamp >= endTime),
             "It is not time to finish"
         );
 
         poolState = PoolState.completed;
 
         uint256 bnbFee = totalRaised.mul(ethFeePercent).div(100);
-        uint256 tokenFee = totalVolumePurchased.mul(tokenFeePercent).div(100);
+        uint256 tokenFee = totalSellAmount.mul(tokenFeePercent).div(100);
 
         uint256 liquidityBnb = totalRaised
             .sub(bnbFee)
             .mul(liquidityPercent)
             .div(100);
-        uint256 liquidityToken = liquidityBnb.mul(liquidityListingRate).div(
-            1e18
-        );
+        uint256 liquidityToken = totalSellAmount.mul(liquidityPercent).div(100);
 
         uint256 remainingBnb = address(this).balance.sub(liquidityBnb).sub(
             bnbFee
@@ -1644,7 +1578,6 @@ contract Pool is OwnableUpgradeable {
 
         uint256 totalTokenSpent = liquidityToken
             .add(tokenFee)
-            .add(totalVolumePurchased)
             .add(teamVestings[0]);
         uint256 balance = IERC20(token).balanceOf(address(this));
         if (balance > totalTokenSpent) {
@@ -1661,12 +1594,7 @@ contract Pool is OwnableUpgradeable {
         }
 
         if (remainingToken > 0) {
-            // 0: refund, 1: burn
-            if (refundType == 0) {
-                IERC20(token).safeTransfer(owner(), remainingToken);
-            } else {
-                IERC20(token).safeTransfer(address(0xdead), remainingToken);
-            }
+            IERC20(token).safeTransfer(owner(), remainingToken);
         }
 
         tvl = liquidityBnb.mul(2);
@@ -1786,51 +1714,6 @@ contract Pool is OwnableUpgradeable {
         governance = governance_;
     }
 
-    function setWhiteLists(address[] memory _whitelists)
-        external
-        onlyGovernance
-    {
-        whitelists = _whitelists;
-    }
-
-    function getWhiteLists() public view returns(address[] memory){
-        return whitelists;
-    }
-    function getContributionAmount(address user_)
-        public
-        view
-        returns (uint256, uint256)
-    {
-        uint256 contributed = contributionOf[user_];
-
-        // Bought all their allocation
-        if (contributed >= maxContribution) {
-            return (0, 0);
-        }
-
-        uint256 availableToBuy = remainingContribution();
-        uint256 remainingAllocation = maxContribution.sub(contributed);
-
-        // How much bnb is one token
-        if (availableToBuy > remainingAllocation) {
-            if (contributed > 0) {
-                return (0, remainingAllocation);
-            } else {
-                return (minContribution, remainingAllocation);
-            }
-        } else {
-            if (contributed > 0) {
-                return (0, availableToBuy);
-            } else {
-                if (availableToBuy < minContribution) {
-                    return (0, availableToBuy);
-                } else {
-                    return (minContribution, availableToBuy);
-                }
-            }
-        }
-    }
-
     function liquidityBalance() public view returns (uint256) {
         address swapFactory = IUniswapV2Router02(router).factory();
         address pair = IUniswapV2Factory(swapFactory).getPair(
@@ -1840,146 +1723,14 @@ contract Pool is OwnableUpgradeable {
         return IERC20(pair).balanceOf(address(this));
     }
 
-    function remainingContribution() public view returns (uint256) {
-        return hardCap.sub(totalRaised);
-    }
-
     function getContributors() public view returns (address[] memory a) {
         return contributors;
     }
 
-    function convert(uint256 amountInWei) public view returns (uint256) {
-        return amountInWei.mul(rate).div(1e18);
-    }
-
-    function getData1()
-        public
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            string memory a,
-            PoolState,
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        return (
-            rate,
-            softCap,
-            hardCap,
-            liquidityPercent,
-            liquidityLockDays,
-            totalRaised,
-            startTime,
-            endTime,
-            urls,
-            poolState,
-            liquidityListingRate,
-            refundType,
-            minContribution,
-            maxContribution
-        );
-    }
 
     function getC_Amounts() public {
         delete c_amounts;
         for (uint256 i = 0; i < contributors.length; i++)
             c_amounts.push(contributionOf[contributors[i]]);
-    }
-
-    function getData2()
-        public
-        view
-        returns (
-            address,
-            address[] memory a,
-            uint256[] memory b,
-            address,
-            uint256,
-            uint256,
-            uint256,
-            address,
-            uint256[3] memory c,
-            uint256[5] memory d,
-            uint256
-        )
-    {
-        uint256 teamVestingAmount = 0;
-        if (
-            teamVestings[0] > 0 &&
-            block.timestamp > endTime &&
-            block.timestamp.sub(endTime) > teamVestings[1]
-        ) {
-            teamVestingAmount = teamVestings[0].mul(teamVestings[2]).div(100);
-            teamVestingAmount = teamVestingAmount.add(
-                teamVestings[0].mul(
-                    (block.timestamp.sub(endTime).sub(teamVestings[1]))
-                        .div(teamVestings[3])
-                        .mul(teamVestings[4])
-                        .div(100)
-                )
-            );
-            if (teamVestingAmount > teamVestings[0])
-                teamVestingAmount = teamVestings[0];
-            teamVestingAmount = teamVestingAmount.sub(claimedTeamVesting);
-        }
-        return (
-            owner(),
-            contributors,
-            c_amounts,
-            router,
-            liquidityUnlockTime,
-            claimedTeamVesting,
-            finalizeTime,
-            token,
-            vestings,
-            teamVestings,
-            teamVestingAmount
-        );
-    }
-
-    function getData3(address account)
-        public
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        uint256 claimAmount = purchasedOf[account];
-        if (finalizeTime == 0) claimAmount = 0;
-        else if (vestings[0] > 0) {
-            claimAmount = claimAmount
-                .mul(
-                    vestings[0].add(
-                        block.timestamp.sub(finalizeTime).div(vestings[1]).mul(
-                            vestings[2]
-                        )
-                    )
-                )
-                .div(100);
-            if (claimAmount > purchasedOf[account])
-                claimAmount = purchasedOf[account];
-            claimAmount = claimAmount.sub(claimedOf[msg.sender]);
-        }
-        return (
-            claimAmount,
-            contributionOf[account],
-            refundedOf[account],
-            claimedOf[account],
-            purchasedOf[account]
-        );
     }
 }

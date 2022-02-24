@@ -170,7 +170,7 @@ contract PoolFactory is Ownable {
         uint256[2] memory _refundType,
         string memory _poolDetails // ERC20 _rewardToken
     ) external payable {
-        require(createFee >= msg.value, 'not enough Fee');
+
         uint256 totaltoken = estimateTokenAmount(
             _rateSettings,
             _capSettings,

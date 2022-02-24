@@ -132,19 +132,29 @@ contract PoolFactory is Ownable {
         isExisting[token] = false;
     }
 
+    function estimateTokenamount(uint256 _saleToken, uint256 _liquidityPercent)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 totalamount = _saleToken
+            .add(_saleToken.mul(_liquidityPercent).div(100))
+            .mul(100)
+            .div(100 - fees[0]);
+        return totalamount;
+    }
+
     function createPool(
         address[4] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance
-        uint256[2] memory _capSettings, // [0] = soft cap, [1] = hard cap
+        uint256 _saleToken,
+        uint256 _softCap, // [0] = soft cap, [1] = hard cap
         uint256[3] memory _timeSettings, // [0] = start, [1] = end, [2] = unlock seconds
-        uint256 _saletoken,
         uint256[5] memory _teamVestings,
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256[2] memory _refundType,
         string memory _poolDetails // ERC20 _rewardToken
     ) external payable {
-        require(createFee >= msg.value, 'not enough Fee');
-        uint256 totaltoken = _saletoken + _saletoken.mul(_liquidityPercent).div(100);
+        uint256 totaltoken = estimateTokenamount(_saleToken, _liquidityPercent);
 
         if (isExisting[_addrs[1]] == false) {
             Pool pool = new Pool();
@@ -156,23 +166,20 @@ contract PoolFactory is Ownable {
             isExisting[_addrs[1]] = true;
 
             IERC20(_addrs[1]).approve(address(pool), totaltoken);
-
             IERC20(_addrs[1]).transferFrom(
                 msg.sender,
                 address(pool),
                 totaltoken
             );
-
             pool.initialize(
                 _addrs,
-                _capSettings,
+                _softCap,
+                _saleToken,
                 _timeSettings,
-                totaltoken,
                 fees,
                 _teamVestings,
                 _urls,
                 _liquidityPercent,
-                _refundType,
                 _poolDetails,
                 lock
             );

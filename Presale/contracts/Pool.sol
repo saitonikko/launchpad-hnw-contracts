@@ -1384,6 +1384,7 @@ contract Pool is OwnableUpgradeable {
     uint256 public locknumber;
 
     bool public completedKyc;
+    bool public whiteList;
 
     string public urls;
 
@@ -1391,6 +1392,8 @@ contract Pool is OwnableUpgradeable {
     mapping(address => uint256) public purchasedOf;
     mapping(address => uint256) public claimedOf;
     mapping(address => uint256) public refundedOf;
+
+    mapping(address => bool) whiteLists;
 
     address[] public contributors;
     uint256[] public c_amounts;
@@ -1400,8 +1403,6 @@ contract Pool is OwnableUpgradeable {
 
     uint256 public finalizeTime;
     uint256 public claimedTeamVesting;
-
-    address[] public whitelists;
 
     event Contributed(
         address indexed user,
@@ -1525,19 +1526,19 @@ contract Pool is OwnableUpgradeable {
         vestings = _vestings;
         teamVestings = _teamVestings;
         lock = _lock;
-        if(_refundType[1] == 1) whitelists.push(_addrs[0]);
+        if (_refundType[1] == 1) {
+            whiteLists[owner()] = true;
+            whiteList = true;
+        }
     }
 
     function contribute() public payable inProgress {
         require(msg.value > 0, "Cant contribute 0");
-        uint256 f = 0;
-        for (uint256 i = 0; i < whitelists.length; i++) {
-            if (whitelists[i] == msg.sender) {
-                f = 1;
-                break;
-            }
-        }
-        require(f == 1 || whitelists.length == 0, "You are not whitelisted");
+        require(
+            (whiteList == true && whiteLists[msg.sender] == true) ||
+                whiteList == false,
+            "You are not whitelisted"
+        );
 
         uint256 userTotalContribution = contributionOf[msg.sender].add(
             msg.value
@@ -1796,16 +1797,33 @@ contract Pool is OwnableUpgradeable {
         governance = governance_;
     }
 
-    function setWhiteLists(address[] memory _whitelists)
+    function setWhiteList(bool _isWhiteList, uint256 _startTime)
         external
         onlyGovernance
     {
-        whitelists = _whitelists;
+        whiteList = _isWhiteList;
+        if (whiteList == true) whiteLists[owner()] = true;
+        else startTime = _startTime;
     }
 
-    function getWhiteLists() public view returns(address[] memory){
-        return whitelists;
+    function addWhiteLists(address[] memory _whitelists)
+        external
+        onlyGovernance
+    {
+        for (uint256 i = 0; i < _whitelists.length; i++) {
+            whiteLists[_whitelists[i]] = true;
+        }
     }
+
+    function removeWhiteLists(address[] memory _whitelists)
+        external
+        onlyGovernance
+    {
+        for (uint256 i = 0; i < _whitelists.length; i++) {
+            whiteLists[_whitelists[i]] = false;
+        }
+    }
+
     function getContributionAmount(address user_)
         public
         view
