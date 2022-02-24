@@ -1385,6 +1385,7 @@ contract Pool is OwnableUpgradeable {
     uint256 public locknumber;
 
     bool public completedKyc;
+    bool public whiteList;
 
     string public urls;
 
@@ -1392,6 +1393,8 @@ contract Pool is OwnableUpgradeable {
     mapping(address => uint256) public purchasedOf;
     mapping(address => uint256) public claimedOf;
     mapping(address => uint256) public refundedOf;
+
+    mapping(address => bool) whiteLists;
 
     address[] public contributors;
     uint256[] public c_amounts;
@@ -1401,8 +1404,6 @@ contract Pool is OwnableUpgradeable {
 
     uint256 public finalizeTime;
     uint256 public claimedTeamVesting;
-
-    address[] public whitelists;
 
     event Contributed(
         address indexed user,
@@ -1440,7 +1441,6 @@ contract Pool is OwnableUpgradeable {
         _;
     }
 
-   
     function initialize(
         address[5] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance, [4] = cointoken
         uint256[2] memory _rateSettings, // [0] = rate, [1] = uniswap rate
@@ -1452,7 +1452,7 @@ contract Pool is OwnableUpgradeable {
         uint256[5] memory _teamVestings, //[0] = total team token, [1] = first release minute, [2] = first release percent, [3] = period minutes, [4] = each cycle percent
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256[2] _refundType,
+        uint256[2] memory _refundType,
         string memory _poolDetails,
         IPinkLock _lock
     ) external initializer {
@@ -1517,32 +1517,30 @@ contract Pool is OwnableUpgradeable {
         tokenFeePercent = _feeSettings[0];
         ethFeePercent = _feeSettings[1];
         liquidityPercent = _liquidityPercent;
-        refundType = _refundType;
+        refundType = _refundType[0];
         poolDetails = _poolDetails;
         poolState = PoolState.inUse;
         urls = _urls;
         vestings = _vestings;
         teamVestings = _teamVestings;
         lock = _lock;
-        if(_refundType[1] == 1)
-            whitelists.push(msg.sender);
+        if (_refundType[1] == 1) {
+            whiteLists[owner()] = true;
+            whiteList = true;
+        }
     }
 
     function contribute(uint256 amount) public inProgress {
         require(amount > 0, "Cant contribute 0");
         IERC20(cointoken).transferFrom(msg.sender, address(this), amount);
-        uint256 f = 0;
-        for (uint256 i = 0; i < whitelists.length; i++) {
-            if (whitelists[i] == msg.sender) {
-                f = 1;
-                break;
-            }
-        }
-        require(f == 1 || whitelists.length == 0, "You are not whitelisted");
 
-        uint256 userTotalContribution = contributionOf[msg.sender].add(
-            amount
+        require(
+            (whiteList == true && whiteLists[msg.sender] == true) ||
+                whiteList == false,
+            "You are not whitelisted"
         );
+
+        uint256 userTotalContribution = contributionOf[msg.sender].add(amount);
 
         if (hardCap.sub(totalRaised) >= minContribution) {
             require(
@@ -1649,9 +1647,10 @@ contract Pool is OwnableUpgradeable {
             1e18
         );
 
-        uint256 remainingCoin = IERC20(cointoken).balanceOf(address(this)).sub(liquidityCoin).sub(
-            coinFee
-        );
+        uint256 remainingCoin = IERC20(cointoken)
+            .balanceOf(address(this))
+            .sub(liquidityCoin)
+            .sub(coinFee);
         uint256 remainingToken = 0;
 
         uint256 totalTokenSpent = liquidityToken
@@ -1700,10 +1699,7 @@ contract Pool is OwnableUpgradeable {
         finalizeTime = block.timestamp;
         tvl = 0;
         address swapFactory = IUniswapV2Router02(router).factory();
-        address pair = IUniswapV2Factory(swapFactory).getPair(
-            cointoken,
-            token
-        );
+        address pair = IUniswapV2Factory(swapFactory).getPair(cointoken, token);
         uint256 pairamount = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(address(lock), pairamount);
         locknumber = IPinkLock(lock).lock(
@@ -1769,10 +1765,7 @@ contract Pool is OwnableUpgradeable {
         uint256 amount_
     ) external onlyGovernance {
         address swapFactory = IUniswapV2Router02(router).factory();
-        address pair = IUniswapV2Factory(swapFactory).getPair(
-            cointoken,
-            token
-        );
+        address pair = IUniswapV2Factory(swapFactory).getPair(cointoken, token);
         require(
             token_ != pair,
             "Cannot withdraw liquidity. Use withdrawLiquidity() instead"
@@ -1799,15 +1792,31 @@ contract Pool is OwnableUpgradeable {
         governance = governance_;
     }
 
-    function setWhiteLists(address[] memory _whitelists)
+    function setWhiteList(bool _isWhiteList, uint256 _startTime)
         external
         onlyGovernance
     {
-        whitelists = _whitelists;
+        whiteList = _isWhiteList;
+        if (whiteList == true) whiteLists[owner()] = true;
+        else startTime = _startTime;
     }
 
-    function getWhiteLists() public view returns (address[] memory) {
-        return whitelists;
+    function addWhiteLists(address[] memory _whitelists)
+        external
+        onlyGovernance
+    {
+        for (uint256 i = 0; i < _whitelists.length; i++) {
+            whiteLists[_whitelists[i]] = true;
+        }
+    }
+
+    function removeWhiteLists(address[] memory _whitelists)
+        external
+        onlyGovernance
+    {
+        for (uint256 i = 0; i < _whitelists.length; i++) {
+            whiteLists[_whitelists[i]] = false;
+        }
     }
 
     function getContributionAmount(address user_)
@@ -1847,10 +1856,7 @@ contract Pool is OwnableUpgradeable {
 
     function liquidityBalance() public view returns (uint256) {
         address swapFactory = IUniswapV2Router02(router).factory();
-        address pair = IUniswapV2Factory(swapFactory).getPair(
-            cointoken,
-            token
-        );
+        address pair = IUniswapV2Factory(swapFactory).getPair(cointoken, token);
         return IERC20(pair).balanceOf(address(this));
     }
 
