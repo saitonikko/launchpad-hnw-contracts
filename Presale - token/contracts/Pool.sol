@@ -1394,10 +1394,10 @@ contract Pool is OwnableUpgradeable {
     mapping(address => uint256) public claimedOf;
     mapping(address => uint256) public refundedOf;
 
-    mapping(address => bool) whiteLists;
+    mapping(address => bool) public whiteLists;
 
-    address[] public contributors;
-    uint256[] public c_amounts;
+    address[] contributors;
+    uint256[] c_amounts;
 
     uint256[3] public vestings;
     uint256[5] public teamVestings;
@@ -1910,7 +1910,7 @@ contract Pool is OwnableUpgradeable {
         );
     }
 
-    function getC_Amounts() public {
+    function getC_Amounts() internal{
         delete c_amounts;
         for (uint256 i = 0; i < contributors.length; i++)
             c_amounts.push(contributionOf[contributors[i]]);
