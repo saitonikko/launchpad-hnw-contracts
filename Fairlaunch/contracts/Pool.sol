@@ -1491,11 +1491,12 @@ contract Pool is OwnableUpgradeable {
         poolState = PoolState.inUse;
         urls = _urls;
         teamVestings = _teamVestings;
-        lock = _lock;
+        lock = IPinkLock(_lock);
     }
 
     function contribute() public payable inProgress {
         require(msg.value > 0, "Cant contribute 0");
+        require(block.timestamp >= startTime, "Cant contribute before startTime");
 
         uint256 userTotalContribution = contributionOf[msg.sender].add(
             msg.value

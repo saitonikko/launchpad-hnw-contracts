@@ -1341,6 +1341,10 @@ contract Pool is OwnableUpgradeable {
 
     uint256 constant MINIMUM_LOCK_DAYS = 5 minutes;
 
+    struct AntiBot {
+        address token;
+        uint256 amount;
+    }
     enum PoolState {
         inUse,
         completed,
@@ -1385,10 +1389,11 @@ contract Pool is OwnableUpgradeable {
     uint256 public locknumber;
 
     bool public completedKyc;
-    bool public whiteList;
+    uint256 public presaleType;
 
     string public urls;
 
+    AntiBot public antibot;
     mapping(address => uint256) public contributionOf;
     mapping(address => uint256) public purchasedOf;
     mapping(address => uint256) public claimedOf;
@@ -1523,23 +1528,32 @@ contract Pool is OwnableUpgradeable {
         urls = _urls;
         vestings = _vestings;
         teamVestings = _teamVestings;
-        lock = _lock;
+        lock = IPinkLock(_lock);
+        presaleType = 1;
         if (_refundType[1] == 1) {
             whiteLists[owner()] = true;
-            whiteList = true;
+            presaleType = 2;
         }
     }
 
     function contribute(uint256 amount) public inProgress {
         require(amount > 0, "Cant contribute 0");
-        IERC20(cointoken).transferFrom(msg.sender, address(this), amount);
 
         require(
-            (whiteList == true && whiteLists[msg.sender] == true) ||
-                whiteList == false,
-            "You are not whitelisted"
+            block.timestamp >= startTime,
+            "Cant contribute before startTime"
         );
+        if (presaleType == 2)
+            require(whiteLists[msg.sender] == true, "You are not whitelisted");
+        if (presaleType == 3) {
+            uint256 balance = IERC20(antibot.token).balanceOf(msg.sender);
+            require(
+                balance >= antibot.amount,
+                "You must hold antibot token amount"
+            );
+        }
 
+        IERC20(cointoken).transferFrom(msg.sender, address(this), amount);
         uint256 userTotalContribution = contributionOf[msg.sender].add(amount);
 
         if (hardCap.sub(totalRaised) >= minContribution) {
@@ -1792,14 +1806,25 @@ contract Pool is OwnableUpgradeable {
         governance = governance_;
     }
 
-    function setWhiteList(bool _isWhiteList, uint256 _startTime)
+   function setAntiBot(address _token, uint256 _amount)
         external
         onlyGovernance
     {
-        whiteList = _isWhiteList;
-        if (whiteList == true) whiteLists[owner()] = true;
-        else startTime = _startTime;
+        antibot.token = _token;
+        antibot.amount = _amount;
+        presaleType = 3;
     }
+
+    function setWhiteList() external onlyGovernance {
+        presaleType = 2;
+        whiteLists[owner()] = true;
+    }
+
+    function setNormalPresale(uint256 _startTime) external onlyGovernance {
+        presaleType = 1;
+        startTime = _startTime;
+    }
+
 
     function addWhiteLists(address[] memory _whitelists)
         external
@@ -1910,7 +1935,7 @@ contract Pool is OwnableUpgradeable {
         );
     }
 
-    function getC_Amounts() internal{
+    function getC_Amounts() internal {
         delete c_amounts;
         for (uint256 i = 0; i < contributors.length; i++)
             c_amounts.push(contributionOf[contributors[i]]);

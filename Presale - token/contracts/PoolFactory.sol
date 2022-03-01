@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.7.6;
-import "./Pool.sol";
+pragma solidity ^0.8.0;
+import "./interfaces/IPool.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address) {
@@ -87,24 +90,22 @@ contract PoolFactory is Ownable {
 
     uint256 public createFee;
     uint256[2] public fees;
-    
+
     address public feeWallet;
-    IPinkLock lock;
+    address lock;
 
     uint256 public tvl;
     uint256 public curPool;
 
-    event CreatePool(
-        address pool
-    );
+    event CreatePool(address pool);
 
     constructor() {
         fees[0] = 2;
         fees[1] = 2;
-        createFee = 100;
+        createFee = 100 * 10**18;
         tvl = 0;
         feeWallet = address(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
-        lock = IPinkLock(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
+        lock = address(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
         coinToken = address(0x12a70cf2C1A9f95ac86D2739519ab5a9Ef0B4a94);
     }
 
@@ -160,6 +161,7 @@ contract PoolFactory is Ownable {
     }
 
     function createPool(
+        address implementation,
         address[5] memory _addrs, // [0] = owner, [1] = token, [2] = router, [3] = governance, [4] = cointoken
         uint256[2] memory _rateSettings, // [0] = rate, [1] = uniswap rate
         uint256[2] memory _contributionSettings, // [0] = min, [1] = max
@@ -169,10 +171,9 @@ contract PoolFactory is Ownable {
         uint256[5] memory _teamVestings,
         string memory _urls,
         uint256 _liquidityPercent,
-        uint256[2] memory _refundType, 
+        uint256[2] memory _refundType,
         string memory _poolDetails // ERC20 _rewardToken
     ) external {
-        
         uint256 totaltoken = estimateTokenAmount(
             _rateSettings,
             _capSettings,
@@ -180,22 +181,27 @@ contract PoolFactory is Ownable {
             _teamVestings[0]
         );
         if (isExisting[_addrs[1]] == false) {
-            Pool pool = new Pool();
-            pools.push(address(pool));
+            require(
+                IERC20(coinToken).balanceOf(msg.sender) >= createFee,
+                "not enough fee"
+            );
+            IERC20(coinToken).transferFrom(
+                msg.sender,
+                address(this),
+                createFee
+            );
+            address pool = Clones.clone(implementation);
+            pools.push(pool);
             for (uint256 i = pools.length - 1; i > 0; i--)
                 pools[i] = pools[i - 1];
-            pools[0] = address(pool);
+            pools[0] = pool;
             isExisting[_addrs[1]] = true;
 
-            IERC20(_addrs[1]).approve(address(pool), totaltoken);
+            IERC20(_addrs[1]).approve(pool, totaltoken);
 
-            IERC20(_addrs[1]).transferFrom(
-                msg.sender,
-                address(pool),
-                totaltoken
-            );
+            IERC20(_addrs[1]).transferFrom(msg.sender, pool, totaltoken);
 
-            pool.initialize(
+            IPool(pool).initialize(
                 _addrs,
                 _rateSettings,
                 _contributionSettings,
@@ -210,10 +216,14 @@ contract PoolFactory is Ownable {
                 _poolDetails,
                 lock
             );
-            emit CreatePool(address(pool));
+            emit CreatePool(pool);
         }
     }
+
     function removeStuckToken() external onlyOwner {
-        IERC20(coinToken).transfer(owner(), IERC20(coinToken).balanceOf(address(this)));
+        IERC20(coinToken).transfer(
+            owner(),
+            IERC20(coinToken).balanceOf(address(this))
+        );
     }
 }
