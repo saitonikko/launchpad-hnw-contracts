@@ -21,7 +21,7 @@ async function main() {
 
   // console.log("Contract deployed to:", PinkLock.address);
 
-  const POOLFACTORY = await hre.ethers.getContractFactory("PoolFactory");
+  const POOLFACTORY = await hre.ethers.getContractFactory("Pool");
   const PoolFactory = await POOLFACTORY.deploy();
 
   await PoolFactory.deployed();

@@ -1347,6 +1347,10 @@ contract Pool is OwnableUpgradeable {
         cancelled
     }
 
+    struct AntiBot {
+        address token;
+        uint256 amount;
+    }
     address public factory;
     address public router;
     address public governance;
@@ -1384,9 +1388,11 @@ contract Pool is OwnableUpgradeable {
     uint256 public locknumber;
 
     bool public completedKyc;
-    bool public whiteList;
+    uint256 public presaleType;
 
     string public urls;
+
+    AntiBot public antibot;
 
     mapping(address => uint256) public contributionOf;
     mapping(address => uint256) public purchasedOf;
@@ -1457,7 +1463,7 @@ contract Pool is OwnableUpgradeable {
         uint256 _liquidityPercent,
         uint256[2] memory _refundType, // 0 = refund   1 = whitelist
         string memory _poolDetails,
-        IPinkLock _lock
+        address _lock
     ) external initializer {
         require(factory == address(0), "Pool: Forbidden");
         require(_addrs[0] != address(0), "Invalid owner address");
@@ -1525,21 +1531,26 @@ contract Pool is OwnableUpgradeable {
         urls = _urls;
         vestings = _vestings;
         teamVestings = _teamVestings;
-        lock = _lock;
+        lock = IPinkLock(_lock);
+        presaleType = 1;
         if (_refundType[1] == 1) {
             whiteLists[owner()] = true;
-            whiteList = true;
+            presaleType = 2;
         }
     }
 
     function contribute() public payable inProgress {
         require(msg.value > 0, "Cant contribute 0");
-        require(
-            (whiteList == true && whiteLists[msg.sender] == true) ||
-                whiteList == false,
-            "You are not whitelisted"
-        );
-
+        require(block.timestamp >= startTime, "Cant contribute before startTime");
+        if (presaleType == 2)
+            require(whiteLists[msg.sender] == true, "You are not whitelisted");
+        if (presaleType == 3) {
+            uint256 balance = IERC20(antibot.token).balanceOf(msg.sender);
+            require(
+                balance >= antibot.amount,
+                "You must hold antibot token amount"
+            );
+        }
         uint256 userTotalContribution = contributionOf[msg.sender].add(
             msg.value
         );
@@ -1797,13 +1808,23 @@ contract Pool is OwnableUpgradeable {
         governance = governance_;
     }
 
-    function setWhiteList(bool _isWhiteList, uint256 _startTime)
+    function setAntiBot(address _token, uint256 _amount)
         external
         onlyGovernance
     {
-        whiteList = _isWhiteList;
-        if (whiteList == true) whiteLists[owner()] = true;
-        else startTime = _startTime;
+        antibot.token = _token;
+        antibot.amount = _amount;
+        presaleType = 3;
+    }
+
+    function setWhiteList() external onlyGovernance {
+        presaleType = 2;
+        whiteLists[owner()] = true;
+    }
+
+    function setNormalPresale(uint256 _startTime) external onlyGovernance {
+        presaleType = 1;
+        startTime = _startTime;
     }
 
     function addWhiteLists(address[] memory _whitelists)
