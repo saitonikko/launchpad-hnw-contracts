@@ -3,7 +3,7 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
- hre = require("hardhat");
+hre = require("hardhat");
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -13,51 +13,56 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
-//   // We get the contract to deploy
-//   let Staking = await hre.ethers.getContractFactory("StandardTokenFactory");
-//   let staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-// await staking.deployed();
+  //   // We get the contract to deploy
+  //   let Staking = await hre.ethers.getContractFactory("StandardTokenFactory");
+  //   let staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
 
- Staking = await hre.ethers.getContractFactory("LiquidityGeneratorTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("LiquidityGeneratorTokenFactory deployed to:", staking.address);
-
-
- Staking = await hre.ethers.getContractFactory("BabyTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("BabyTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("LiquidityGeneratorTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("LiquidityGeneratorTokenFactory deployed to:", staking.address);
 
 
- Staking = await hre.ethers.getContractFactory("BuyBackBabyTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("BuyBackBabyTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("BabyTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("BabyTokenFactory deployed to:", staking.address);
 
 
- Staking = await hre.ethers.getContractFactory("AntiBotStandardTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("AntiBotStandardTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("BuyBackBabyTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("BuyBackBabyTokenFactory deployed to:", staking.address);
 
 
- Staking = await hre.ethers.getContractFactory("AntiBotLiquidityGeneratorTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("AntiBotLiquidityGeneratorTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("AntiBotStandardTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("AntiBotStandardTokenFactory deployed to:", staking.address);
 
 
- Staking = await hre.ethers.getContractFactory("AntiBotBabyTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("AntiBotBabyTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("AntiBotLiquidityGeneratorTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("AntiBotLiquidityGeneratorTokenFactory deployed to:", staking.address);
 
 
- Staking = await hre.ethers.getContractFactory("AntiBotBuyBackBabyTokenFactory");
-   staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
-await staking.deployed();
-console.log("AntiBotBuyBackBabyTokenFactory deployed to:", staking.address);
+  //  Staking = await hre.ethers.getContractFactory("AntiBotBabyTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("AntiBotBabyTokenFactory deployed to:", staking.address);
+
+
+  //  Staking = await hre.ethers.getContractFactory("AntiBotBuyBackBabyTokenFactory");
+  //    staking = await Staking.deploy("0x61731dF345D63160ac979De280F75b96856BE229", "0xBcCb626aDd32b731fFb4FB949f3aaF43e4Fc5987");
+  // await staking.deployed();
+  // console.log("AntiBotBuyBackBabyTokenFactory deployed to:", staking.address);
+
+  Staking = await hre.ethers.getContractFactory("AntiBot");
+  staking = await Staking.deploy();
+  await staking.deployed();
+  console.log("AntiBot deployed to:", staking.address);
 
   //  Staking = await hre.ethers.getContractFactory("LiquidityGeneratorToken");
   //  staking = await Staking.deploy(
