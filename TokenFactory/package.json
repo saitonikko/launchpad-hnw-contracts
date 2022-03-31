@@ -22,6 +22,7 @@
     "openzeppelin-solidity": "4.1.0"
   },
   "dependencies": {
+    "@remix-project/remixd": "^0.5.7",
     "dotenv": "^10.0.0"
   }
 }
