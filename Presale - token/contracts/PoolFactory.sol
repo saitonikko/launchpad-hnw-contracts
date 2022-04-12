@@ -105,7 +105,7 @@ contract PoolFactory is Ownable {
         createFee = 100 * 10**18;
         tvl = 0;
         feeWallet = address(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
-        lock = address(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
+        lock = address(0xef37dD0dc5cc1BEF1F1c8fbD280e0C5D26A03846);
         coinToken = address(0x12a70cf2C1A9f95ac86D2739519ab5a9Ef0B4a94);
     }
 

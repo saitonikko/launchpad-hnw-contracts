@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 interface IUniswapV2Factory {
     event PairCreated(
         address indexed token0,
@@ -689,7 +691,7 @@ interface IERC20 {
     );
 }
 
-interface IPinkLock {
+interface IHNWLock {
     function lock(
         address owner,
         address token,
@@ -1377,7 +1379,7 @@ contract Pool is OwnableUpgradeable {
     uint256 public totalRefunded;
 
     uint256 private tvl;
-    IPinkLock public lock;
+    IHNWLock public lock;
     uint256 public locknumber;
 
     bool public completedKyc;
@@ -1446,7 +1448,7 @@ contract Pool is OwnableUpgradeable {
         string memory _urls,
         uint256 _liquidityPercent,
         string memory _poolDetails,
-        IPinkLock _lock
+        IHNWLock _lock
     ) external initializer {
         require(factory == address(0), "Pool: Forbidden");
         require(_addrs[0] != address(0), "Invalid owner address");
@@ -1491,7 +1493,7 @@ contract Pool is OwnableUpgradeable {
         poolState = PoolState.inUse;
         urls = _urls;
         teamVestings = _teamVestings;
-        lock = IPinkLock(_lock);
+        lock = IHNWLock(_lock);
     }
 
     function contribute() public payable inProgress {
@@ -1622,7 +1624,7 @@ contract Pool is OwnableUpgradeable {
         );
         uint256 pairamount = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(address(lock), pairamount);
-        locknumber = IPinkLock(lock).lock(
+        locknumber = IHNWLock(lock).lock(
             msg.sender,
             pair,
             true,

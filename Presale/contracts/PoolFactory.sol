@@ -104,7 +104,7 @@ contract PoolFactory is Ownable {
         createFee = 3 * 10**17;
         tvl = 0;
         feeWallet = payable(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
-        lock = address(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
+        lock = address(0x8393fAAFcA0803Fe6a5Ef035F802d4A617Ef51cf);
     }
 
     function getPools() public view returns (address[] memory a) {
