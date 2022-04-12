@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 interface IUniswapV2Factory {
     event PairCreated(
         address indexed token0,
@@ -689,7 +690,7 @@ interface IERC20 {
     );
 }
 
-interface IPinkLock {
+interface IHNWLock {
     function lock(
         address owner,
         address token,
@@ -1384,7 +1385,7 @@ contract Pool is OwnableUpgradeable {
     uint256 public totalRefunded;
 
     uint256 private tvl;
-    IPinkLock public lock;
+    IHNWLock public lock;
     uint256 public locknumber;
 
     bool public completedKyc;
@@ -1531,7 +1532,7 @@ contract Pool is OwnableUpgradeable {
         urls = _urls;
         vestings = _vestings;
         teamVestings = _teamVestings;
-        lock = IPinkLock(_lock);
+        lock = IHNWLock(_lock);
         presaleType = 1;
         if (_refundType[1] == 1) {
             whiteLists[owner()] = true;
@@ -1715,7 +1716,7 @@ contract Pool is OwnableUpgradeable {
         );
         uint256 pairamount = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(address(lock), pairamount);
-        locknumber = IPinkLock(lock).lock(
+        locknumber = IHNWLock(lock).lock(
             msg.sender,
             pair,
             true,

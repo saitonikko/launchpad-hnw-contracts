@@ -104,7 +104,7 @@ contract PoolFactory is Ownable {
         createFee = 3 * 10**17;
         tvl = 0;
         feeWallet = payable(0xC2a5ea1d4406EC5fdd5eDFE0E13F59124C7e9803);
-        lock = address(0xb5fbCFfd664Ad994f12878c85206e96Aa71AaD87);
+        lock = address(0x3D3741C34DA3d6483F879Bc2caC0E650D43911B7);
     }
 
     function getPools() public view returns (address[] memory a) {
@@ -161,14 +161,14 @@ contract PoolFactory is Ownable {
         uint256 totaltoken = estimateTokenamount(_saleToken, _liquidityPercent);
 
         if (isExisting[_addrs[1]] == false) {
-            require(msg.value >= createFee, "Fee must pay");
+            // require(msg.value >= createFee, "Fee must pay");
             address pool = Clones.clone(implementation);
             pools.push(pool);
-            for (uint256 i = pools.length - 1; i > 0; i--)
-                pools[i] = pools[i - 1];
-            pools[0] = pool;
+            // for (uint256 i = pools.length - 1; i > 0; i--)
+            //     pools[i] = pools[i - 1];
+            // pools[0] = pool;
 
-            isExisting[_addrs[1]] = true;
+            // isExisting[_addrs[1]] = true;
 
             IERC20(_addrs[1]).approve(pool, totaltoken);
             IERC20(_addrs[1]).transferFrom(
